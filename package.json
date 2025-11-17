@@ -1,6 +1,6 @@
 {
   "name": "embeddable-jq",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Embeddable implementation of JQ focusing on small size",
   "license": "MIT",
   "homepage": "https://github.com/DiagramCraft/embeddable-jq",
