@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'vitest';
-import { OObjects, parseAndQuery } from '../lib/query';
+import {describe, expect, test} from 'vitest';
+import {OObjects, parseAndQuery} from '../lib/query';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const queryOne = (q: string, input: any) => {
@@ -54,6 +54,30 @@ describe('OObject', () => {
     ]);
   });
 });
+
+describe('object constructor', () => {
+  test('test', () => {
+    expect(parseAndQuery('{ a: "lorem", b: (.[] | select(.name == "a")) }', [[
+      {name: 'a', age: 1},
+      {name: 'b', age: 2},
+      {name: 'a', age: 3}
+    ]])).toEqual([
+      {
+        "a": "lorem",
+        "b": {
+          "name": "a",
+          "age": 1
+        }
+      },
+      {
+        "a": "lorem",
+        "b": {
+          "name": "a",
+          "age": 3
+        }
+      }]);
+  })
+})
 
 describe('.abc', () => {
   test('.', () => {

@@ -751,11 +751,11 @@ abstract class BaseGenerator<T extends Array<Value> = Value[]> implements Genera
 type PathAndValue = { path: PathElement[]; val: unknown };
 
 export const OObjects = {
-  parse: (tok: Tokenizer): PathAndValue[] => OObjects.parseNext(tok, []),
+  parse: (tok: Tokenizer, functions: Record<string, number>): PathAndValue[] => OObjects.parseNext(tok, [], functions),
 
-  parseString: (s: string): PathAndValue[] => OObjects.parse(new Tokenizer(s)),
+  parseString: (s: string, functions: Record<string, number>): PathAndValue[] => OObjects.parse(new Tokenizer(s), functions),
 
-  parseNext(tokenizer: Tokenizer, path: PathElement[]): PathAndValue[] {
+  parseNext(tokenizer: Tokenizer, path: PathElement[], functions: Record<string, number>): PathAndValue[] {
     const tok = tokenizer.next();
 
     if (tok.type === 'str') {
@@ -765,11 +765,11 @@ export const OObjects = {
     } else if (tok.s === '$') {
       return [{ path, val: new VarRefOp('$' + tokenizer.next().s) }];
     } else if (tok.s === '{') {
-      return OObjects.parseObject(tokenizer, path);
+      return OObjects.parseObject(tokenizer, path, functions);
     } else if (tok.s === '(') {
-      return [{ path, val: parseTo(')', tokenizer, {}) }];
+      return [{ path, val: parseTo(')', tokenizer, functions) }];
     } else if (tok.s === '[') {
-      return OObjects.parseArray(tokenizer, path);
+      return OObjects.parseArray(tokenizer, path, functions);
     } else if (tok.type === 'num') {
       return [{ path, val: Number(tok.s) }];
     } else if (tok.s === 'true' || tok.s === 'false') {
@@ -781,20 +781,20 @@ export const OObjects = {
     throw error(102, tokenizer.head);
   },
 
-  parseObject(s: Tokenizer, path: PathElement[]) {
+  parseObject(s: Tokenizer, path: PathElement[], functions: Record<string, number>) {
     const arr: PathAndValue[] = [];
 
     let currentKey: any = undefined;
 
     while (!s.accept('}')) {
       if (currentKey) {
-        arr.push(...OObjects.parseNext(s, [...path, currentKey]));
+        arr.push(...OObjects.parseNext(s, [...path, currentKey], functions));
 
         s.accept(',');
         currentKey = undefined;
       } else {
         const tokenType = s.peek().type;
-        const next = OObjects.parseNext(s, []);
+        const next = OObjects.parseNext(s, [], functions);
         currentKey = next[0].val;
 
         if (!s.accept(':')) {
@@ -818,11 +818,11 @@ export const OObjects = {
     return arr.length === 0 ? [{ path, val: {} }] : arr;
   },
 
-  parseArray(s: Tokenizer, path: PathElement[]): PathAndValue[] {
+  parseArray(s: Tokenizer, path: PathElement[], functions: Record<string, number>): PathAndValue[] {
     const arr: PathAndValue[] = [];
 
     while (!s.accept(']')) {
-      arr.push(...OObjects.parseNext(s, [...path, arr.length]));
+      arr.push(...OObjects.parseNext(s, [...path, arr.length], functions));
       s.accept(',');
     }
 
@@ -1593,11 +1593,11 @@ class UnaryMinusOp extends BaseGenerator {
 
 /** Parser ************************************************************************** */
 
-const parseDestructionTarget = (tokenizer: Tokenizer): Generator => {
+const parseDestructionTarget = (tokenizer: Tokenizer, functions: Record<string, number>): Generator => {
   const tok = tokenizer.peek();
 
   if (tok.s === '[' || tok.s === '{') {
-    return new ObjectLiteralOp(OObjects.parse(tokenizer));
+    return new ObjectLiteralOp(OObjects.parse(tokenizer, functions));
   } else if (tokenizer.accept('$')) {
     return new VarRefOp('$' + tokenizer.next().s);
   }
@@ -1742,7 +1742,7 @@ const parseOperand = (tokenizer: Tokenizer, functions: Record<string, number>): 
       } else if (tok.type === 'num') {
         gen.push(literal(Number(tokenizer.next().s)));
       } else if (tok.s === '{') {
-        gen.push(new ObjectLiteralOp(OObjects.parse(tokenizer)));
+        gen.push(new ObjectLiteralOp(OObjects.parse(tokenizer, functions)));
       } else if (tok.type === 'str') {
         const value = tokenizer.next().s;
 
@@ -1838,7 +1838,7 @@ const parseExpression = (
     const op = tokenizer.next().s;
     left = BINOP_REGISTRY[op](
       left,
-      op === 'as' ? parseDestructionTarget(tokenizer) : parseExpression(tokenizer, functions, op)
+      op === 'as' ? parseDestructionTarget(tokenizer, functions) : parseExpression(tokenizer, functions, op)
     );
   });
 };
